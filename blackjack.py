@@ -14,48 +14,29 @@ class Stats:
   def export_stats(self):
     hit_win_ratio = self.hit_wins / max(self.total_hit_games,1)
     stand_win_ratio = self.stand_wins / max(self.total_stand_games,1)
-    optimal_move = 0
-    if hit_win_ratio > stand_win_ratio:
-
-      optimal_move = 1
-      non_optimal_move = 0
-    else:
+    optimal_move = 1
+    if hit_win_ratio < stand_win_ratio:
       optimal_move = 0
-      non_optimal_move = 1
     return optimal_move
 
   def decide_move(self):
-# y = 0.4845e-0.039x
+
     hit_win_ratio = self.hit_wins / max(self.total_hit_games,1)
     stand_win_ratio = self.stand_wins / max(self.total_stand_games,1)
-    optimal_move = 0
-    non_optimal_move = 1
-    # print "hit_win_ratio " + str(hit_win_ratio)
-    # print "stand_win ratio " + str(stand_win_ratio)
-    # print "total games " + str(self.total_games)
-    # print "total_hit_games "  + str(self.total_hit_games)
-    # print "total_stand_games " + str(self.total_stand_games)
+    optimal_move = 1
+    non_optimal_move = 0
 
-    if hit_win_ratio > stand_win_ratio:
-
-      optimal_move = 1
-      non_optimal_move = 0
-    else:
+    if hit_win_ratio < stand_win_ratio:
       optimal_move = 0
       non_optimal_move = 1
-    # print "optimal move " + str(optimal_move)
 
     non_optimal_chance = .5 * math.e ** -((self.total_games/100) ** 2)
-    # (math.e ** (-.2 / temp))
-    # non_optimal_chance = .5 - (0.5 * (e ^ (.2/self.total_games)))
     prob = random.random()
 
     if prob < non_optimal_chance:
       return non_optimal_move
     else:
       return optimal_move
-
-
 
 class Tables:
 
@@ -77,24 +58,22 @@ class Tables:
     for i in range(len(self.no_ace)):
       row = []
       for j in range(len(self.no_ace[i])):
-        row.append("(" + str(i) + "," +str(j) + ") " + str(self.no_ace[i][j].export_stats()))
+        row.append("(" + str(i+2) + "," +str(j+2) + ") " + str(self.no_ace[i][j].export_stats()))
       with open('blackjack.csv', 'a') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(row)
 
-
     for i in range(len(self.ace)):
       row = []
       for j in range(len(self.ace[i])):
-        row.append("(" + str(i) + "," +str(j+2) + ") " + str(self.ace[i][j].export_stats()))
+        row.append("(" + str(i+2) + "," +str(j+2) + ") " + str(self.ace[i][j].export_stats()))
       with open('blackjack_ace.csv', 'a') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(row)
 
-
 class Card:
 
-  def __init__(self,suit, rank):
+  def __init__(self,suit,rank):
     self.rank = rank[0]
     self.value = rank[1]
     self.suit = suit
@@ -117,7 +96,6 @@ class Deck:
   def remove_card(self):
     index = random.randint(0,len(self.cards)-1)
     return self.cards.pop(index)
-
 
 class Player:
 
@@ -173,7 +151,6 @@ class Player:
         else:
           stat = self.table.ace[dealer_card.value -2][self.get_sum()-2]
 
-        # print ("score is: " + str(self.get_sum()))
         next_move = stat.decide_move()
         self.states.append((stat,next_move))
 
@@ -198,7 +175,6 @@ class Game:
 
   def update_stats(self,player,outcome):
     #outcome 0 = loss 1 = win 2 = push
-    # print ("INSIDE UPDATE STATS*********") + str(outcome)
     for stat in player.states:
 
       stat[0].total_games += 1
@@ -258,11 +234,11 @@ class Game:
 
 table = Tables()
 total_wins = 0.
-for i in range(50000):
+for i in range(500000):
   game = Game(10,table)
   total_wins += game.play()
   if i %1000 == 0:
-    print "totalwin ratio" + str(total_wins/10000)
+    print "totalwin ratio " + str(total_wins/10000)
     total_wins = 0
 table.export_stats_table()
 
