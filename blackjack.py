@@ -1,14 +1,28 @@
 import random
 import math
+import csv
 
 class Stats:
 
   def __init__(self):
-    self.total_games = 0
-    self.total_hit_games = 0
-    self.total_stand_games = 0
-    self.hit_wins = 0
-    self.stand_wins = 0
+    self.total_games = 0.
+    self.total_hit_games = 0.
+    self.total_stand_games = 0.
+    self.hit_wins = 0.
+    self.stand_wins = 0.
+
+  def export_stats(self):
+    hit_win_ratio = self.hit_wins / max(self.total_hit_games,1)
+    stand_win_ratio = self.stand_wins / max(self.total_stand_games,1)
+    optimal_move = 0
+    if hit_win_ratio > stand_win_ratio:
+
+      optimal_move = 1
+      non_optimal_move = 0
+    else:
+      optimal_move = 0
+      non_optimal_move = 1
+    return optimal_move
 
   def decide_move(self):
 # y = 0.4845e-0.039x
@@ -16,16 +30,22 @@ class Stats:
     stand_win_ratio = self.stand_wins / max(self.total_stand_games,1)
     optimal_move = 0
     non_optimal_move = 1
+    # print "hit_win_ratio " + str(hit_win_ratio)
+    # print "stand_win ratio " + str(stand_win_ratio)
+    # print "total games " + str(self.total_games)
+    # print "total_hit_games "  + str(self.total_hit_games)
+    # print "total_stand_games " + str(self.total_stand_games)
 
     if hit_win_ratio > stand_win_ratio:
+
       optimal_move = 1
       non_optimal_move = 0
     else:
       optimal_move = 0
       non_optimal_move = 1
+    # print "optimal move " + str(optimal_move)
 
-    temp = 1/max(self.total_games,1)
-    non_optimal_chance = .5 * math.e ** ((self.total_games/100) ** 2)
+    non_optimal_chance = .5 * math.e ** -((self.total_games/100) ** 2)
     # (math.e ** (-.2 / temp))
     # non_optimal_chance = .5 - (0.5 * (e ^ (.2/self.total_games)))
     prob = random.random()
@@ -52,6 +72,25 @@ class Tables:
         ace.append(Stats())
       self.no_ace.append(no_ace)
       self.ace.append(ace)
+
+  def export_stats_table(self):
+    for i in range(len(self.no_ace)):
+      row = []
+      for j in range(len(self.no_ace[i])):
+        row.append("(" + str(i) + "," +str(j) + ") " + str(self.no_ace[i][j].export_stats()))
+      with open('blackjack.csv', 'a') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(row)
+
+
+    for i in range(len(self.ace)):
+      row = []
+      for j in range(len(self.ace[i])):
+        row.append("(" + str(i) + "," +str(j+2) + ") " + str(self.ace[i][j].export_stats()))
+      with open('blackjack_ace.csv', 'a') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(row)
+
 
 class Card:
 
@@ -115,24 +154,32 @@ class Player:
     return self.get_sum()
 
   def play(self,dealer_card):
+      if self.is_dealer:
+        while self.get_sum() < 17:
+          card = self.deck.remove_card()
+          self.cards.append(card)
+          self.score = self.get_sum()
+        return self.stay()
 
-      has_ace = False
-      for card in self.cards:
-        if card.rank == "Ace":
-          has_ace = True
-
-      stat = None
-      if has_ace:
-        stat = self.table.no_ace[dealer_card.value -2][self.get_sum()-2]
       else:
-        stat = self.table.ace[dealer_card.value -2][self.get_sum()-2]
+        has_ace = False
+        for card in self.cards:
+          if card.rank == "Ace":
+            has_ace = True
 
-      next_move = stat.decide_move()
-      self.states.append((stat,next_move))
+        stat = None
+        if has_ace:
+          stat = self.table.no_ace[dealer_card.value -2][self.get_sum()-2]
+        else:
+          stat = self.table.ace[dealer_card.value -2][self.get_sum()-2]
 
-      #next move returns 1 for hit and 0 for stay
-      if next_move == 1:
-        self.hit(dealer_card)
+        # print ("score is: " + str(self.get_sum()))
+        next_move = stat.decide_move()
+        self.states.append((stat,next_move))
+
+        #next move returns 1 for hit and 0 for stay
+        if next_move == 1:
+          self.hit(dealer_card)
 
 
 
@@ -143,13 +190,15 @@ class Game:
     self.num_players = num_players
     self.players = []
     self.table = table
+    self.wins = 0
     for i in range(num_players):
       self.players.append(Player(self.deck,False,self.table))
 
     self.players.append(Player(self.deck,True,self.table))
 
-  def update_stats(self, player,outcome):
+  def update_stats(self,player,outcome):
     #outcome 0 = loss 1 = win 2 = push
+    # print ("INSIDE UPDATE STATS*********") + str(outcome)
     for stat in player.states:
 
       stat[0].total_games += 1
@@ -162,13 +211,11 @@ class Game:
             stat[0].hit_wins += 0.5
       #stand
       else:
+        stat[0].total_stand_games += 1
         if outcome == 1:
           stat[0].stand_wins += 1
         if outcome == 2:
           stat[0].stand_wins += 0.5
-
-
-    self.total_stand_games = 0
 
   def play(self):
     player_scores = []
@@ -178,16 +225,16 @@ class Game:
       player.play(dealer_card)
 
     dealer_score = self.players[-1].score
-    print "Dealer score is: " + str(self.players[-1].score)
+    # print "Dealer score is: " + str(self.players[-1].score)
 
     count = 0
     for player in self.players:
-      print "player: " + str(count)
+      # print "player: " + str(count)
       count +=1
-      for i in player.cards:
-        print i.rank
-      print player.get_sum()
-      print "\n"
+      # for i in player.cards:
+      #   print i.rank
+      # print player.get_sum()
+      # print "\n"
 
     #update stats for each players
     for i in range(self.num_players):
@@ -195,20 +242,30 @@ class Game:
 
       if ((dealer_score > score and dealer_score <= 21) or (score > 21)):
         self.update_stats(self.players[i],0)
-        print "Player: " + str(i) + "lost"
+
+        # print "Player: " + str(i) + "lost"
       elif dealer_score < score or dealer_score > 21 :
         self.update_stats(self.players[i],1)
-        print "Player: " + str(i) + "won"
+        self.wins += 1
+        # print "Player: " + str(i) + "won"
       else:
-       print "Player: " + str(i) + "pushed"
+       # print "Player: " + str(i) + "pushed"
+       self.wins += .5
        self.update_stats(self.players[i],2)
+
+    return self.wins
 
 
 table = Tables()
+total_wins = 0.
+for i in range(50000):
+  game = Game(10,table)
+  total_wins += game.play()
+  if i %1000 == 0:
+    print "totalwin ratio" + str(total_wins/10000)
+    total_wins = 0
+table.export_stats_table()
 
-for i in range(100):
-  game = Game(15,table)
-  game.play()
 
 
 
