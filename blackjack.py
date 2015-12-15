@@ -30,7 +30,7 @@ class Stats:
         optimal_move = "stay"
       else:
         optimal_move = "double"
-            
+
     return optimal_move
 
   def get_optimal(self):
@@ -38,9 +38,9 @@ class Stats:
     stay_win_ratio = self.stay_wins / max(self.total_stay_bet,1)
     double_win_ratio = self.double_wins / max(self.total_double_bet,1)
 
-    if hit_win_ratio > stay_win_ratio and hit_win_ratio > double_win_ratio:
+    if hit_win_ratio >= stay_win_ratio and hit_win_ratio >= double_win_ratio:
       return 0
-    if stay_win_ratio > hit_win_ratio and stay_win_ratio > double_win_ratio:
+    if stay_win_ratio >= hit_win_ratio and stay_win_ratio >= double_win_ratio:
       return 1
     else:
       return 2
@@ -52,9 +52,10 @@ class Stats:
     options = ["hit","stay","double"]
 
     if can_double:
-      optimal = self.get_optimal()
-      options.pop(optimal)
-      non_optimal_chance = .6666 * math.e ** -((self.total_games/1000) ** 2)
+      optimal_index = self.get_optimal()
+      optimal = options.pop(optimal_index)
+      # print "total_games " + str(self.total_games)
+      non_optimal_chance = .6666 * math.e ** -((self.total_games/100) ** 2)
       prob = random.random()
 
       if prob < non_optimal_chance:
@@ -111,7 +112,7 @@ class Tables:
     for i in range(len(self.no_ace)):
       row = []
       for j in range(len(self.no_ace[i])):
-        row.append("(" + str(i+2) + "," +str(j+2) + ") " + str(self.no_ace[i][j].export_stats()))
+        row.append("(" + str(i+2) + "," +str(j+2) + ") " + str(self.no_ace[i][j].export_stats()) + "\n")
       with open('blackjack.csv', 'a') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(row)
@@ -187,6 +188,7 @@ class Player:
   def double (self):
     card = self.deck.remove_card()
     self.cards.append(card)
+    self.score = self.get_sum()
     return self.get_sum()
 
 
@@ -336,7 +338,7 @@ class Game:
 table = Tables()
 total_bets = 0
 total_winnings = 0
-for i in range(100000):
+for i in range(1000000):
   game = Game(10,table)
   bets,winnings = game.play()
   total_bets += bets
