@@ -234,7 +234,7 @@ class Game:
 
 table = Tables()
 total_wins = 0.
-for i in range(100000):
+for i in range(300000):
   game = Game(10,table)
   total_wins += game.play()
   if i %10000 == 0:
