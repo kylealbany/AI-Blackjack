@@ -10,33 +10,70 @@ class Stats:
     self.total_stand_games = 0.
     self.hit_wins = 0.
     self.stand_wins = 0.
+    self.total_double_games = 0.
+    self.double_wins = 0.
 
   def export_stats(self):
     hit_win_ratio = self.hit_wins / max(self.total_hit_games,1)
     stand_win_ratio = self.stand_wins / max(self.total_stand_games,1)
-    optimal_move = 1
+    optimal_move = "hit"
     if hit_win_ratio < stand_win_ratio:
-      optimal_move = 0
+      optimal_move = "stay"
     return optimal_move
 
-  def decide_move(self):
-
+  def get_optimal(self):
     hit_win_ratio = self.hit_wins / max(self.total_hit_games,1)
     stand_win_ratio = self.stand_wins / max(self.total_stand_games,1)
-    optimal_move = 1
-    non_optimal_move = 0
+    double_win_ratio = self.double_wins / max(self.total_double_games,1)
 
-    if hit_win_ratio < stand_win_ratio:
-      optimal_move = 0
-      non_optimal_move = 1
-
-    non_optimal_chance = .5 * math.e ** -((self.total_games/100) ** 2)
-    prob = random.random()
-
-    if prob < non_optimal_chance:
-      return non_optimal_move
+    if hit_win_ratio > stand_win_ratio and hit_win_ratio > double_win_ratio:
+      return 0
+    if stand_win_ratio > hit_win_ratio and stand_win_ratio > double_win_ratio:
+      return 1
     else:
-      return optimal_move
+      return 2
+
+
+  def decide_move(self, can_double):
+    double_win_ratio = self.double_wins / max(self.total_double_games,1)
+
+    options = ["hit","stay","double"]
+
+    if can_double:
+      optimal = self.get_optimal()
+      options.pop(optimal)
+      non_optimal_chance = .6666 * math.e ** -((self.total_games/1000) ** 2)
+      prob = random.random()
+
+      if prob < non_optimal_chance:
+        prob = random.randint(0,1)
+        if prob == 0:
+          move = options[0]
+        else:
+          move = options[1]
+      else:
+          move = optimal
+      return move
+
+
+
+    else:
+      hit_win_ratio = self.hit_wins / max(self.total_hit_games,1)
+      stand_win_ratio = self.stand_wins / max(self.total_stand_games,1)
+      optimal_move = "hit"
+      non_optimal_move = "stay"
+
+      if hit_win_ratio < stand_win_ratio:
+        optimal_move = "stay"
+        non_optimal_move = "hit"
+
+      non_optimal_chance = .5 * math.e ** -((self.total_games/1000) ** 2)
+      prob = random.random()
+
+      if prob < non_optimal_chance:
+        return non_optimal_move
+      else:
+        return optimal_move
 
 class Tables:
 
@@ -131,32 +168,50 @@ class Player:
   def stay (self):
     return self.get_sum()
 
-  def play(self,dealer_card):
-      if self.is_dealer:
-        while self.get_sum() < 17:
-          card = self.deck.remove_card()
-          self.cards.append(card)
-          self.score = self.get_sum()
-        return self.stay()
+  def double (self):
+    card = self.deck.remove_card()
+    self.cards.append(card)
+    return self.get_sum()
 
+
+  def split (self): pass
+
+
+
+  def play (self,dealer_card):
+    if self.is_dealer:
+      while self.get_sum() < 17:
+        card = self.deck.remove_card()
+        self.cards.append(card)
+        self.score = self.get_sum()
+      return self.stay()
+
+    else:
+      has_ace = False
+      for card in self.cards:
+        if card.rank == "Ace":
+          has_ace = True
+
+      stat = None
+      if has_ace:
+        stat = self.table.no_ace[dealer_card.value -2][self.get_sum()-2]
       else:
-        has_ace = False
-        for card in self.cards:
-          if card.rank == "Ace":
-            has_ace = True
+        stat = self.table.ace[dealer_card.value -2][self.get_sum()-2]
 
-        stat = None
-        if has_ace:
-          stat = self.table.no_ace[dealer_card.value -2][self.get_sum()-2]
-        else:
-          stat = self.table.ace[dealer_card.value -2][self.get_sum()-2]
+      if (len(self.cards)>2):
+        next_move = stat.decide_move(False)
+      else:
+        next_move = stat.decide_move(True)
 
-        next_move = stat.decide_move()
-        self.states.append((stat,next_move))
+      self.states.append((stat,next_move))
 
-        #next move returns 1 for hit and 0 for stay
-        if next_move == 1:
-          self.hit(dealer_card)
+      #next move returns 1 for hit and 0 for stay and 2 for double
+      if next_move == "hit":
+        self.hit(dealer_card)
+      if next_move == "double":
+        self.double()
+      else:
+        self.stay()
 
 
 
@@ -178,13 +233,27 @@ class Game:
     for stat in player.states:
 
       stat[0].total_games += 1
+
       #hit
-      if stat[1] == 1:
+      if stat[1] == "hit":
         stat[0].total_hit_games +=1
         if outcome == 1:
            stat[0].hit_wins +=1
         if outcome == 2:
             stat[0].hit_wins += 0.5
+        return "hit"
+
+      elif stat[1] == "double":
+        stat[0].total_double_games += 1
+        if outcome == 1:
+          stat[0].double_wins +=2
+        if outcome == 2:
+          stat[0].double_wins += 1
+        else:
+          stat[0].total_double_games += 1
+
+          return "double"
+
       #stand
       else:
         stat[0].total_stand_games += 1
@@ -192,6 +261,8 @@ class Game:
           stat[0].stand_wins += 1
         if outcome == 2:
           stat[0].stand_wins += 0.5
+
+        return "stand"
 
   def play(self):
     player_scores = []
@@ -221,13 +292,20 @@ class Game:
 
         # print "Player: " + str(i) + "lost"
       elif dealer_score < score or dealer_score > 21 :
-        self.update_stats(self.players[i],1)
+        updated = self.update_stats(self.players[i],1)
         self.wins += 1
+        if updated == "double":
+          # print "won on double"
+          self.wins +=1
+
         # print "Player: " + str(i) + "won"
       else:
        # print "Player: " + str(i) + "pushed"
        self.wins += .5
-       self.update_stats(self.players[i],2)
+       updated = self.update_stats(self.players[i],2)
+       if updated == "double":
+          print "pushed on double"
+          self.wins += .5
 
     return self.wins
 
@@ -237,8 +315,8 @@ total_wins = 0.
 for i in range(500000):
   game = Game(10,table)
   total_wins += game.play()
-  if i %1000 == 0:
-    print "totalwin ratio " + str(total_wins/10000)
+  if i %10000 == 0:
+    print "totalwin ratio " + str(total_wins/100000)
     total_wins = 0
 table.export_stats_table()
 
