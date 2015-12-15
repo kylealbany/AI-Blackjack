@@ -312,14 +312,10 @@ class Game:
 
 table = Tables()
 total_wins = 0.
-for i in range(500000):
+for i in range(300000):
   game = Game(10,table)
   total_wins += game.play()
   if i %10000 == 0:
     print "totalwin ratio " + str(total_wins/100000)
     total_wins = 0
 table.export_stats_table()
-
-
-
-
