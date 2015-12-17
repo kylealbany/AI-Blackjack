@@ -1,6 +1,9 @@
 import random
 import math
 import csv
+import numpy as np
+import matplotlib.pyplot as plt
+
 
 class Stats:
 
@@ -338,11 +341,28 @@ class Game:
 table = Tables()
 total_bets = 0
 total_winnings = 0
-for i in range(1000000):
+stats = []
+total_games = 0
+for i in range(500):
   game = Game(10,table)
   bets,winnings = game.play()
+  total_games += bets
   total_bets += bets
   total_winnings += winnings
-  if i %10000 == 0:
-    print "totalwin ratio " + str(total_winnings/total_bets)
+  if i %10== 0:
+    if (total_winnings/total_bets < 1.):
+      stats.append([total_games, total_winnings/total_bets])
+      print "totalwin ratio " + str(total_winnings/total_bets)
+    total_bets = 0
+    total_winnings = 0
 table.export_stats_table()
+plt.ylim([0.,1.0])
+plt.plot(*zip(*stats))
+plt.suptitle('Blackjack AI')
+plt.xlabel('Number of Bets Placed')
+plt.ylabel('Percent Return')
+
+plt.show()
+
+
+＀
